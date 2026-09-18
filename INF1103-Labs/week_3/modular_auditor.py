@@ -81,3 +81,4 @@ while True:
 generate_report(inventory, failed_entries)
 
 print("Total Deliveries Processed:", deliveries_processed)
+print("Total Tax:", calculate_tax(inventory))

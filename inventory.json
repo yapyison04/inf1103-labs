@@ -4,5 +4,11 @@
         "name": "sss",
         "price": 2.0,
         "stock": 2
+    },
+    {
+        "id": "TEST",
+        "name": "test",
+        "price": 2.0,
+        "stock": 2
     }
 ]

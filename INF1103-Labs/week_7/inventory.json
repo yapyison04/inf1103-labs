@@ -1,0 +1,18 @@
+[
+    {
+        "id": "P001",
+        "name": "Keyboard",
+        "price": 50.0,
+        "stock": 10,
+        "type": "physical",
+        "weight": 1.5
+    },
+    {
+        "id": "D001",
+        "name": "Python Ebook",
+        "price": 15.0,
+        "stock": 100,
+        "type": "digital",
+        "download_size": 25.0
+    }
+]

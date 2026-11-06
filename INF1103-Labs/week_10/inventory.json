@@ -1,1 +1,80 @@
-[]
+[
+    {
+        "id": "P001",
+        "name": "Gaming Mouse",
+        "price": 59.9,
+        "stock": 20,
+        "supplier": {
+            "supplier_id": "S001",
+            "name": "Logitech",
+            "contact_email": "sales@example.com"
+        },
+        "type": "physical",
+        "weight": 0.5
+    },
+    {
+        "id": "P002",
+        "name": "Mechanical Keyboard",
+        "price": 129.9,
+        "stock": 15,
+        "supplier": {
+            "supplier_id": "S001",
+            "name": "Logitech",
+            "contact_email": "sales@example.com"
+        },
+        "type": "physical",
+        "weight": 1.2
+    },
+    {
+        "id": "P003",
+        "name": "Gaming Monitor",
+        "price": 299.0,
+        "stock": 8,
+        "supplier": {
+            "supplier_id": "S002",
+            "name": "Tech Supplies",
+            "contact_email": "tech@example.com"
+        },
+        "type": "physical",
+        "weight": 5.0
+    },
+    {
+        "id": "D001",
+        "name": "Python Ebook",
+        "price": 25.0,
+        "stock": 100,
+        "supplier": {
+            "supplier_id": "S003",
+            "name": "Digital Books",
+            "contact_email": "books@example.com"
+        },
+        "type": "digital",
+        "download_size": 15.5
+    },
+    {
+        "id": "D002",
+        "name": "Programming Course",
+        "price": 89.9,
+        "stock": 200,
+        "supplier": {
+            "supplier_id": "S003",
+            "name": "Digital Books",
+            "contact_email": "books@example.com"
+        },
+        "type": "digital",
+        "download_size": 500.0
+    },
+    {
+        "id": "D003",
+        "name": "Antivirus Software",
+        "price": 49.9,
+        "stock": 50,
+        "supplier": {
+            "supplier_id": "S004",
+            "name": "Software Solutions",
+            "contact_email": "software@example.com"
+        },
+        "type": "digital",
+        "download_size": 250.0
+    }
+]

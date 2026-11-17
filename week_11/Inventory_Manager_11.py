@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import csv
 import math
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -43,6 +44,8 @@ class Product(ABC):
         self.__product_id: str = product_id.strip().upper()
         self.__name: str = name.strip()
         self.__price: float = float(validate_number(price, "Price"))
+        if self.__price <= 0:
+            raise ValueError("Price must be greater than zero.")
         self.supplier: Supplier = supplier
         self.__stock: int = 0
         self.update_stock(stock)
@@ -188,13 +191,71 @@ class OrderLine:
         return self.product.price * self.quantity
 
 
+class DiscountStrategy(ABC):
+    @abstractmethod
+    def apply(self, total: float) -> float:
+        pass
+
+
+class NoDiscount(DiscountStrategy):
+    def apply(self, total: float) -> float:
+        return total
+
+
+class PercentageDiscount(DiscountStrategy):
+    def __init__(self, percentage: float) -> None:
+        if not isinstance(percentage, (int, float)) or not math.isfinite(percentage) or not 0 <= percentage <= 100:
+            raise ValueError("Percentage must be between 0 and 100.")
+        self.percentage = percentage
+
+    def apply(self, total: float) -> float:
+        return total * (1 - self.percentage / 100)
+
+
+class BulkDiscount(DiscountStrategy):
+    def __init__(self, threshold: float, amount: float) -> None:
+        if threshold <= 0 or amount < 0:
+            raise ValueError("Threshold must be positive and amount cannot be negative.")
+        self.threshold = threshold
+        self.amount = amount
+
+    def apply(self, total: float) -> float:
+        return max(0.0, total - self.amount) if total >= self.threshold else total
+
+
+class StudentDiscount(DiscountStrategy):
+    def apply(self, total: float) -> float:
+        return total * 0.95
+
+
+class ProductFactory:
+    @staticmethod
+    def create(product_type: str, product_id: str, name: str, price: float,
+               stock_quantity: int, supplier: Supplier, *,
+               weight: float = 0.0, download_size: float = 0.0) -> Product:
+        if product_type.lower() == "physical":
+            return PhysicalProduct(product_id, name, price, stock_quantity, weight, supplier)
+        elif product_type.lower() == "digital":
+            return DigitalProduct(product_id, name, price, stock_quantity, download_size, supplier)
+        else:
+            raise ValueError(f"Unknown product type: {product_type}")
+
+
 class Order:
 
-    def __init__(self, order_id: str) -> None:
+    def __init__(self, order_id: str, discount: DiscountStrategy | None = None) -> None:
         if not order_id.strip():
             raise ValueError("Order ID cannot be blank.")
         self.order_id: str = order_id
         self.order_lines: list[OrderLine] = []
+        self.discount: DiscountStrategy = discount if discount is not None else NoDiscount()
+        if not isinstance(self.discount, DiscountStrategy):
+            raise TypeError("discount must be a DiscountStrategy.")
+
+    def set_discount(self, discount: DiscountStrategy) -> None:
+        if not isinstance(discount, DiscountStrategy):
+            raise TypeError("discount must be a DiscountStrategy.")
+        self.discount = discount
 
     def add_order_line(self, product: Product, quantity: int) -> None:
         self.order_lines.append(OrderLine(product, quantity))
@@ -203,7 +264,8 @@ class Order:
         self.order_lines.pop(index)
 
     def calculate_total(self) -> float:
-        return sum(line.calculate_subtotal() for line in self.order_lines)
+        total = sum(line.calculate_subtotal() for line in self.order_lines)
+        return self.discount.apply(total)
 
     def display_order(self) -> None:
         print(f"Order {self.order_id}")
@@ -234,13 +296,12 @@ def load_inventory(filename: Path = DATA_FILE) -> Inventory:
         if supplier_id not in suppliers:
             suppliers[supplier_id] = Supplier(**details)
         supplier = suppliers[supplier_id]
-        common = (item["id"], item["name"], item["price"], item["stock"])
-        if item["type"] == "physical":
-            product = PhysicalProduct(*common, item["weight"], supplier)
-        elif item["type"] == "digital":
-            product = DigitalProduct(*common, item["download_size"], supplier)
-        else:
-            raise ValueError(f"Unknown product type: {item['type']}")
+        product = ProductFactory.create(
+            item["type"], item["id"], item["name"], item["price"],
+            item["stock"], supplier,
+            weight=item.get("weight", 0.0),
+            download_size=item.get("download_size", 0.0),
+        )
         if not inventory.add_product(product):
             raise ValueError(f"Duplicate product ID: {item['id']}")
     print("Inventory loaded successfully.")
@@ -281,15 +342,17 @@ def add_product(inventory: Inventory) -> None:
     if not name:
         print("Product name cannot be empty.")
         return
-    price = get_number("Price: ")
+    price = get_positive_float("Price: ")
     stock = get_number("Stock Quantity: ", whole_number=True)
     supplier = Supplier(input("Supplier ID: "), input("Supplier Name: "), input("Supplier Email: "))
     if product_type == "1":
         weight = get_number("Weight (kg): ")
-        product = PhysicalProduct(product_id, name, float(price), int(stock), float(weight), supplier)
+        product = ProductFactory.create("physical", product_id, name, float(price), int(stock), supplier,
+                                        weight=float(weight))
     else:
         size = get_number("Download Size (MB): ")
-        product = DigitalProduct(product_id, name, float(price), int(stock), float(size), supplier)
+        product = ProductFactory.create("digital", product_id, name, float(price), int(stock), supplier,
+                                        download_size=float(size))
     inventory.add_product(product)
     print("Product added successfully.")
 
@@ -312,8 +375,47 @@ def search_product(inventory: Inventory) -> None:
         product.display_information()
 
 
+def get_positive_float(prompt: str) -> float:
+    while True:
+        try:
+            value = float(input(prompt))
+            if not math.isfinite(value) or value <= 0:
+                print("Please enter a number greater than zero.")
+                continue
+            return value
+        except ValueError:
+            print("Please enter a valid number, e.g. 12.50")
+
+
+def load_products(path: str, inventory: Inventory, supplier: Supplier) -> None:
+    loaded = 0
+    try:
+        file = open(path, newline="", encoding="utf-8-sig")
+    except FileNotFoundError:
+        print(f"Products file not found: {path}")
+    else:
+        with file:
+            reader = csv.DictReader(file)
+            for line_number, row in enumerate(reader, start=2):
+                try:
+                    product_type = row["product_type"].strip()
+                    product = ProductFactory.create(
+                        product_type,
+                        row["product_id"], row["name"],
+                        float(row["price"]), int(row["stock_quantity"]), supplier,
+                    )
+                    if not inventory.add_product(product):
+                        raise ValueError(f"Duplicate product ID: {product.product_id}")
+                    loaded += 1
+                except (ValueError, KeyError, TypeError, AttributeError) as error:
+                    print(f"Skipping row {line_number}: {error}")
+        print(f"{loaded} products loaded.")
+    finally:
+        print("Load attempt finished.")
+
+
 def main() -> None:
-    print("INVENTORY MANAGEMENT SYSTEM - LAB 8")
+    print("INVENTORY MANAGEMENT SYSTEM - LAB 11")
     try:
         inventory = load_inventory()
     except (OSError, ValueError, KeyError, TypeError) as error:

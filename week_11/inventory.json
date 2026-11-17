@@ -1,0 +1,15 @@
+[
+    {
+        "id": "987",
+        "name": "uagcuiobx",
+        "price": 23.0,
+        "stock": 3,
+        "supplier": {
+            "supplier_id": "423",
+            "name": "asc",
+            "contact_email": "fdv424"
+        },
+        "type": "physical",
+        "weight": 2.0
+    }
+]
